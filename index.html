@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conexão Segura</title>
+    <style>
+        :root { 
+            --primary: #4db6ac; 
+            --primary-dark: #00695c;
+            --accent: #e57373; 
+            --bg: #f4f7f6; 
+            --text: #333; 
+        }
+
+        /* Temas de Cores Selecionáveis */
+        body.theme-verde { --primary: #4db6ac; --primary-dark: #00695c; --accent: #e57373; }
+        body.theme-rosa { --primary: #f48fb1; --primary-dark: #880e4f; --accent: #ba68c8; }
+        body.theme-azul { --primary: #90caf9; --primary-dark: #0d47a1; --accent: #ff8a65; }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            margin: 0; 
+            background-color: var(--bg); 
+            padding-bottom: 90px; 
+            color: var(--text); 
+            user-select: none; 
+        }
+
+        .screen { padding: 20px; display: none; }
+        .screen.active { display: block; }
+        
+        .card { 
+            background: white; 
+            border-radius: 15px; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+
+        .ist-item {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+        .ist-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .ist-title {
+            color: var(--primary-dark);
+            margin: 0 0 6px 0;
+            font-size: 1.1rem;
+        }
+
+        .navbar { 
+            background: white; 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); 
+            position: fixed; 
+            bottom: 0; 
+            width: 100%; 
+            border-top: 1px solid #ddd; 
+            z-index: 10;
+        }
+
+        .nav-btn { 
+            background: none; 
+            border: none; 
+            font-weight: bold; 
+            color: #595959; 
+            cursor: pointer;
+            min-height: 48px;
+            min-width: 48px;
+            font-size: 0.8rem;
+        }
+        .nav-btn.active { color: var(--primary-dark); border-bottom: 3px solid var(--primary-dark); }
+
+        .cal-day { 
+            padding: 15px 0; 
+            background: #eee; 
+            border-radius: 8px; 
+            text-align: center; 
+            cursor: pointer;
+            border: 2px solid transparent;
+            min-height: 48px;
+        }
+        .cal-day.active { background: var(--accent); color: white; font-weight: bold; }
+
+        .msg { margin-bottom: 15px; padding: 14px; border-radius: 12px; max-width: 85%; line-height: 1.5; font-size: 0.95rem; }
+        .msg.bot { background: #e1f5fe; align-self: flex-start; color: #01579b; border-bottom-left-radius: 2px; }
+        .msg.user { background: #e8f5e9; align-self: flex-end; margin-left: auto; text-align: right; color: #1b5e20; border-bottom-right-radius: 2px; }
+
+        input, select, textarea, button {
+            font-size: 1rem;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        button { 
+            cursor: pointer; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            font-weight: bold;
+        }
+        button:active { transform: scale(0.98); }
+
+        /* Modal / Tela de Ajustes do Ciclo */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 350px;
+        }
+
+        /* Tela de Login */
+        #login-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="theme-verde">
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen">
+        <div class="card" style="width: 100%; max-width: 340px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🩺🤝✨</div>
+            <h2 style="color: var(--primary-dark); margin-top: 0;">Conexão Segura</h2>
+            <p style="font-size: 0.85rem; color: #666;">Informe seus dados para personalizar sua experiência de saúde com privacidade.</p>
+            
+            <form onsubmit="fazerLogin(event)" style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                <label><b>Seu Nome:</b></label>
+                <input type="text" id="loginNome" placeholder="Ex: Jamilly ou João" required>
+                
+                <label><b>Sua Senha:</b></label>
+                <input type="password" id="loginSenha" placeholder="Digite uma senha" required>
+
+                <label><b>Gênero:</b></label>
+                <select id="loginGenero" onchange="verificarOpcaoGenero(this.value)">
+                    <option value="feminino">Feminino</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="trans">Transgênero / Não-binário</option>
+                    <option value="nao_informar">Prefere não dizer</option>
+                </select>
+
+                <!-- Campo dinâmico exibido apenas para Transgênero / Não-binário / Prefere não dizer -->
+                <div id="campo-pergunta-ciclo" style="display: none; background: #f0f7f7; padding: 10px; border-radius: 8px; border: 1px solid var(--primary);">
+                    <label><b>É preciso do calendário menstrual?</b></label>
+                    <select id="loginUsaCiclo" style="margin-top: 5px; width: 100%;">
+                        <option value="sim">Sim, preciso</option>
+                        <option value="nao">Não preciso</option>
+                    </select>
+                </div>
+                
+                <label><b>Cor do Aplicativo:</b></label>
+                <select id="loginTema" onchange="mudarTemaLocal(this.value)">
+                    <option value="theme-verde">Verde Fraco</option>
+                    <option value="theme-rosa">Rosa Fraco</option>
+                    <option value="theme-azul">Azul Fraco</option>
+                </select>
+
+                <button type="submit" style="margin-top: 10px; padding: 12px;">Entrar no Aplicativo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE ATUALIZAÇÃO DO CICLO -->
+    <div id="modal-ciclo" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color: var(--primary-dark);">Atualizar Ciclo Menstrual</h3>
+            <form onsubmit="salvarDadosCiclo(event)" style="display:flex; flex-direction:column; gap:10px;">
+                <label><b>Data que começou a menstruar:</b></label>
+                <input type="date" id="dataInicioMenstruacao" required>
+
+                <label><b>Data que terminou:</b></label>
+                <input type="date" id="dataFimMenstruacao" required>
+
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="button" onclick="fecharModalCiclo()" style="flex:1; background:#888;">Cancelar</button>
+                    <button type="submit" style="flex:1;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <!-- HOME -->
+        <section id="home" class="screen active">
+            <div class="card" style="background: linear-gradient(135deg, #e0f2f1, #b2dfdb); border: none; text-align: center;">
+                <div style="font-size: 40px;">🩺🤝✨</div>
+                <h1 style="color: var(--primary-dark); margin: 10px 0; font-size: 1.5rem;">Olá, <span class="user-name-display">Usuário(a)</span>!</h1>
+                <p style="color: var(--primary-dark);"><i>"Cuidar da saúde é um ato de amor próprio."</i></p>
+            </div>
+
+            <!-- MONITORAMENTO DE CICLO (EXIBIDO DE ACORDO COM A NECESSIDADE DO USUÁRIO) -->
+            <div id="card-monitoramento-menstrual" class="card" style="border-left: 5px solid var(--accent);">
+                <h2 style="margin-top:0; color: var(--accent); font-size: 1.2rem;">📊 Monitoramento Ciclar</h2>
+                <div style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Próxima menstruação estimada</span>
+                        <strong id="textoProximaMenstruacao">12 dias</strong>
+                    </div>
+                    <div style="background: #eee; height: 12px; border-radius: 6px; margin-top: 5px;">
+                        <div id="barraProgressoCiclo" style="background: var(--accent); height: 100%; width: 65%; border-radius: 6px;"></div>
+                    </div>
+                </div>
+                <div style="padding-top: 10px; border-top: 1px solid #eee; font-size:0.9rem;">
+                    📅 Último início: <strong id="textoUltimoInicio">Não registrado</strong><br>
+                    🏁 Último término: <strong id="textoUltimoFim">Não registrado</strong>
+                </div>
+                <button onclick="abrirModalCiclo()" style="width:100%; margin-top:15px; padding:12px; border-radius:8px; min-height: 48px;">Atualizar registros do ciclo</button>
+            </div>
+
+            <!-- Lembretes Gerais de Saúde -->
+            <div class="card">
+                <h3>💡 Cuidados diários recomendados</h3>
+                <ul>
+                    <li>Mantenha sua carteira de vacinação atualizada (HPV, Hepatite B, Tétano).</li>
+                    <li>Consulte o posto de saúde/SUS para exames de rotina.</li>
+                    <li>Utilize preservativos nas relações sexuais.</li>
+                </ul>
+            </div>
+
+            <!-- Alterar Configuração de Cor -->
+            <div class="card">
+                <h3>🎨 Personalizar Cores</h3>
+                <select onchange="mudarTemaLocal(this.value)" style="width: 100%;">
+                    <option value="theme-verde">Verde Fraco</option>
+                    <option value="theme-rosa">Rosa Fraco</option>
+                    <option value="theme-azul">Azul Fraco</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- ABA INFO -->
+        <section id="info" class="screen">
+            <h1 style="font-size: 1.5rem;">📚 Guia Completo de Saúde Sexual</h1>
+            <p style="font-size: 0.9rem; color: #555;">Tudo o que você precisa saber sobre prevenção, sintomas e cuidados de forma clara e acessível.</p>
+
+            <!-- EXPLICAÇÃO O QUE SÃO ISTs -->
+            <div class="card" style="border-left: 5px solid var(--primary-dark);">
+                <h2 style="font-size: 1.2rem; color: var(--primary-dark); margin-top: 0;">💡 O que é IST?</h2>
+                <p><b>IST</b> significa <b>Infecção Sexualmente Transmissível</b>.</p>
+                <p>O termo substituiu a antiga sigla <b>DST</b> (Doenças Sexualmente Transmissíveis) porque destaca que uma pessoa pode ter e transmitir uma infecção viral ou bacteriana <b>mesmo sem apresentar nenhum sintoma ou sinal visível de doença</b>.</p>
+                <p><b>Transmissão:</b> Ocorre principalmente pelo contato sexual desprotegido (vaginal, anal ou oral). Também pode ser transmitida da mãe para o bebê durante a gestação, parto ou amamentação, ou pelo contato com sangue infectado.</p>
+                <p><b>Prevenção Geral:</b> Uso correto da camisinha (masculina ou feminina), vacinação (HPV e Hepatite B) e exames periódicos no SUS.</p>
+            </div>
+
+            <!-- GUIA DE ISTs COM RESUMO, SINTOMAS E PREVENÇÃO -->
+            <div class="card">
+                <h2 style="font-size: 1.3rem; color: var(--primary-dark); margin-bottom: 15px;">🦠 As 9 Principais ISTs</h2>
+                
+                <!-- 1. SÍFILIS -->
+                <div class="ist-item">
+                    <h3 class="ist-title">1. Sífilis</h3>
+                    <p><b>Resumo:</b> Infecção bacteriana grave que pode afetar o corpo todo se não for tratada. Tem cura total e gratuita no SUS.</p>
+                    <p><b>Sintomas:</b> Ferida indolor nos genitais/boca (1ª fase); manchas pelo corpo, palmas das mãos e pés (2ª fase); feridas graves e complicações neurológicas/cardíacas se avançar.</p>
+                    <p><b>Prevenção:</b> Uso de preservativo (masculino/feminino) e realização de teste rápido no posto de saúde.</p>
+                </div>
+
+                <!-- 2. HIV / AIDS -->
+                <div class="ist-item">
+                    <h3 class="ist-title">2. HIV / Aids</h3>
+                    <p><b>Resumo:</b> O HIV é um vírus que ataca as células de defesa do corpo. Se não tratado, causa a Aids. Com o tratamento correto por antirretrovirais no SUS, o vírus fica indetectável e intransmissível.</p>
+                    <p><b>Sintomas:</b> Inicialmente pode parecer um resfriado/gripe. Na fase avançada (Aids), surgem infecções frequentes, perda de peso extrema e febre.</p>
+                    <p><b>Prevenção:</b> Camisinha, uso de PrEP/PEP (medicamentos preventivos no SUS), não compartilhar agulhas/seringas.</p>
+                </div>
+
+                <!-- 3. HPV -->
+                <div class="ist-item">
+                    <h3 class="ist-title">3. HPV (Papilomavírus Humano)</h3>
+                    <p><b>Resumo:</b> Vírus muito comum que infecta pele e mucosas. Certos tipos podem causar verrugas e outros estão ligados ao câncer de colo do útero.</p>
+                    <p><b>Sintomas:</b> Verrugas genitais (em forma de couve-flor) na região íntima ou ânus. Muitas vezes é assintomático.</p>
+                    <p><b>Prevenção:</b> Vacina contra o HPV (gratuita no SUS para crianças e adolescentes), uso de preservativo e exame preventivo (Papanicolau).</p>
+                </div>
+
+                <!-- 4. GONORREIA -->
+                <div class="ist-item">
+                    <h3 class="ist-title">4. Gonorreia</h3>
+                    <p><b>Resumo:</b> Infecção bacteriana que atinge principalmente os órgãos genitais, uretra, garganta e olhos.</p>
+                    <p><b>Sintomas:</b> Dor ou ardor intenso ao urinar e corrimento amarelado ou esverdeado na vagina ou pênis.</p>
+                    <p><b>Prevenção:</b> Uso correto e frequente de preservativo em todas as relações sexuais.</p>
+                </div>
+
+                <!-- 5. CLAMÍDIA -->
+                <div class="ist-item">
+                    <h3 class="ist-title">5. Clamídia</h3>
+                    <p><b>Resumo:</b> Infecção bacteriana muito frequente que pode comprometer a fertilidade masculina e feminina se não tratada. É totalmente curável com antibióticos.</p>
+                    <p><b>Sintomas:</b> Na maioria dos casos é silenciosa (sem sintomas). Quando ocorrem: dor ao urinar, corrimento fluido e dor durante o sexo.</p>
+                    <p><b>Prevenção:</b> Preservativos masculinos ou femininos e testes periódicos de rotina na UBS.</p>
+                </div>
+
+                <!-- 6. HERPES GENITAL -->
+                <div class="ist-item">
+                    <h3 class="ist-title">6. Herpes Genital</h3>
+                    <p><b>Resumo:</b> Infecção viral frequente que causa episódios recorrentes de lesões na região genital. Não tem cura definitiva, mas há medicamentos para controlar crises.</p>
+                    <p><b>Sintomas:</b> Pequenas bolhas dolorosas e vermelhas que estouram e formam feridas, além de coceira e ardor.</p>
+                    <p><b>Prevenção:</b> Uso de camisinha e EVITAR contato sexual direto durante crises ativas (quando houver bolhas ou feridas).</p>
+                </div>
+
+                <!-- 7. HEPATITE B -->
+                <div class="ist-item">
+                    <h3 class="ist-title">7. Hepatite B</h3>
+                    <p><b>Resumo:</b> Infecção viral que atinge o fígado. Pode tornar-se crônica e evoluir para cirrose ou câncer hepático.</p>
+                    <p><b>Sintomas:</b> Geralmente silenciosa. Quando manifesta: pele/olhos amarelados (icterícia), cansaço, urina escura e dor abdominal.</p>
+                    <p><b>Prevenção:</b> Vacinação completa (3 doses no SUS), preservativo e não compartilhar alicates, lâminas ou agulhas.</p>
+                </div>
+
+                <!-- 8. HEPATITE C -->
+                <div class="ist-item">
+                    <h3 class="ist-title">8. Hepatite C</h3>
+                    <p><b>Resumo:</b> Doença viral do fígado transmitida principalmente por sangue contaminado e também por sexo. Possui cura em mais de 95% dos casos com comprimidos no SUS.</p>
+                    <p><b>Sintomas:</b> Silenciosa por muitos anos. Pode provocar cansaço, tontura, enjoo e pele/olhos amarelados em estágios avançados.</p>
+                    <p><b>Prevenção:</b> Preservativo, não compartilhar objetos perfurocortantes (seringas, alicates de unha, lâminas de barbear) e testagem rápida.</p>
+                </div>
+
+                <!-- 9. TRICOMONÍASE -->
+                <div class="ist-item">
+                    <h3 class="ist-title">9. Tricomoníase</h3>
+                    <p><b>Resumo:</b> Infecção causada por um protozoário. Atinge principalmente a vagina e uretra. É tratada e curada facilmente com medicamentos.</p>
+                    <p><b>Sintomas:</b> Corrimento amarelado ou esverdeado com cheiro forte, coceira intensa, vermelhidão e dor ao urinar ou ter relações.</p>
+                    <p><b>Prevenção:</b> Preservativo (camisinha) e evitar compartilhar toalhas íntimas ou roupas de banho.</p>
+                </div>
+            </div>
+
+            <!-- MÉTODOS CONTRACEPTIVOS -->
+            <div class="card">
+                <h2 style="font-size: 1.2rem; color: var(--primary-dark);">🛡️ Métodos Contraceptivos no SUS</h2>
+
+                <p><b>Preservativos (Masculino e Feminino):</b> Os únicos métodos que protegem SIMULTANEAMENTE contra ISTs e gravidez não planejada. Gratuitos em todas as UBS.</p>
+
+                <p><b>DIU de Cobre:</b> Método não hormonal de longa duração (até 10 anos). Inserido pelo médico na UBS de forma gratuita e altamente eficaz.</p>
+
+                <p><b>Anticoncepcionais Hormoniais:</b> Pílulas diárias e injeções (mensais ou trimestrais) disponíveis gratuitamente nas unidades de saúde.</p>
+
+                <p><b>Pílula do Dia Seguinte (Emergência):</b> Deve ser usada até 72h após a relação desprotegida. Não deve ser usada como método diário, mas está disponível sem receita nas Unidades de Saúde.</p>
+            </div>
+
+            <!-- DIREITOS E SIGILO NO SUS -->
+            <div class="card">
+                <h2 style="font-size: 1.2rem; color: var(--primary-dark);">⚖️ Seus Direitos e Privacidade</h2>
+
+                <p><b>Atendimento Sigiloso:</b> Todo atendimento em saúde é confidencial por lei. Profissionais de saúde não podem divulgar suas informações.</p>
+
+                <p><b>Autonomia Jovem:</b> A partir dos 12 anos, adolescentes têm o direito de passar em consulta médica ou de enfermagem para orientações sobre saúde sexual sem a presença obrigatória dos pais.</p>
+
+                <p><b>Acesso Gratuito:</b> Testes rápidos (HIV, Sífilis, Hepatites), vacinas, preservativos e consultas são 100% gratuitos no SUS.</p>
+            </div>
+
+            <!-- MITOS VS VERDADES -->
+            <div class="card">
+                <h2 style="font-size: 1.2rem; color: var(--primary-dark);">🚫 Mitos vs. Verdades</h2>
+
+                <p><b>Mito:</b> "Usar duas camisinhas juntas protege o dobro."<br><b>Verdade:</b> Usar duas camisinhas gera atrito e faz o látex rasgar! Use apenas uma.</p>
+
+                <p><b>Mito:</b> "Posso pegar IST na piscina ou assento de banheiro."<br><b>Verdade:</b> Microrganismos não sobrevivem na água clorada nem no ar. A transmissão exige contato íntimo desprotegido ou sangue.</p>
+
+                <p><b>Mito:</b> "Lavar-se logo após a relação evita gravidez."<br><b>Verdade:</b> Duchas vaginais ou lavagens externas não evitam a gestação nem protegem contra ISTs.</p>
+            </div>
+
+            <!-- ONDE BUSCAR AJUDA -->
+            <div class="card">
+                <h2 style="font-size: 1.2rem; color: var(--primary-dark);">📍 Onde Buscar Ajuda?</h2>
+                <p>Procure uma <b>Unidade Básica de Saúde (UBS)</b> ou um <b>CTA (Centro de Testagem e Aconselhamento)</b> na sua cidade no Pará. Em casos de violência sexual ou exposição de risco recente (até 72h), dirija-se à emergência para iniciar a PEP (Profilaxia Pós-Exposição).</p>
+            </div>
+        </section>
+
+        <!-- ABA PARÁ / CÂNCER -->
+        <section id="para" class="screen">
+            <h1 style="font-size: 1.5rem;">🎗️ Prevenção de Câncer no Pará</h1>
+            <p style="font-size: 0.9rem; color: #555;">Orientações focadas nos tipos de câncer com grande incidência no estado do Pará:</p>
+
+            <div class="card">
+                <h3 style="color: #c2185b;">🎀 Mama e Colo do Útero</h3>
+                <p><b>Colo do Útero:</b> Uma das maiores incidências no Norte. Previna com a vacina contra o HPV (SUS) e o exame Papanicolau/Preventivo periodicamente.</p>
+                <p><b>Mama:</b> Faça mamografia a partir dos 50 anos (ou antes, se houver histórico familiar) e preste atenção a nódulos e dores no autoexame.</p>
+            </div>
+
+            <div class="card">
+                <h3 style="color: #1976d2;">🟦 Próstata</h3>
+                <p>Homens a partir dos 50 anos (ou 45 para negros ou com histórico familiar) devem realizar o exame de sangue PSA e o toque retal na UBS.</p>
+            </div>
+
+            <div class="card">
+                <h3 style="color: #388e3c;">🍃 Estômago e Intestino (Cólon e Reto)</h3>
+                <p><b>Estômago:</b> Alta frequência na região devido a fatores alimentares (alimentos ricos em sal/defumados) e infecção por <i>H. pylori</i>. Realize endoscopia sob orientação.</p>
+                <p><b>Intestino:</b> Priorize dieta rica em fibras, frutas e boa hidratação. Faça exames de sangue oculto nas fezes e colonoscopia no SUS.</p>
+            </div>
+
+            <div class="card">
+                <h3 style="color: #757575;">🫁 Pulmão (Traqueia e Brônquios)</h3>
+                <p>Evite o uso de cigarro tradicional ou eletrônico (Vape). A detecção precoce de tosses persistentes e falta de ar é vital.</p>
+            </div>
+        </section>
+
+        <!-- CHATBOT SIMPÁTICO -->
+        <section id="chatbot" class="screen">
+            <h1 style="font-size: 1.5rem;">Assistente Virtual de Saúde</h1>
+            <div id="chatBox" style="display:flex; flex-direction:column; height:340px; overflow-y:auto; padding-bottom:10px;">
+                <div class="msg bot">Olá, <span class="user-name-display">Usuário(a)</span>! Que bom ter você por aqui! 😊 Sou sua assistente virtual e estou pronta para te ajudar com muito carinho e total sigilo. Pode me perguntar sobre o que é uma IST, gravidez, exames, vacinas, métodos contraceptivos, prevenção do câncer ou tirar dúvidas sobre Sífilis, HIV, HPV, Gonorreia, Clamídia, Herpes, Hepatites B e C ou Tricomoníase. Como posso te apoiar hoje?</div>
+            </div>
+            <form onsubmit="enviarMensagem(event)" style="display:flex; gap:5px; margin-top:5px;">
+                <input type="text" id="chatInput" style="flex:1; padding:12px; border-radius:8px; border:1px solid #777; min-height: 48px;" placeholder="Digite sua dúvida de saúde aqui...">
+                <button type="submit" style="padding:10px 18px; border-radius:8px; font-weight:bold; min-height: 48px;">Enviar</button>
+            </form>
+        </section>
+
+        <!-- SAÚDE E ANOTAÇÕES -->
+        <section id="saude" class="screen">
+            <h1 style="font-size: 1.5rem;">📅 Registros e Anotações</h1>
+            <p>Toque nos dias para selecionar e faça anotações importantes para acompanhar sua saúde, <span class="user-name-display">Usuário(a)</span>:</p>
+            
+            <div id="grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px;"></div>
+
+            <!-- BLOCO DE ANOTAÇÕES -->
+            <div class="card" style="margin-top: 20px;">
+                <h3 id="tituloAnotacoes">📝 Anotações Pessoais</h3>
+                <p style="font-size: 0.85rem; color:#666;" id="subtituloAnotacoes">
+                    Anote aqui detalhes sobre relações sexuais, sintomas, exames ou fluxo menstrual.
+                </p>
+                <textarea id="textoAnotacoes" rows="4" style="width:100%; border-radius:8px; padding:10px;" placeholder="Ex: Hoje tive relação com proteção de camisinha / Fiz meu exame de sangue no posto..."></textarea>
+                <button onclick="salvarAnotacao()" style="width:100%; margin-top:10px; padding:10px;">Salvar Anotação</button>
+            </div>
+        </section>
+    </main>
+
+    <nav class="navbar">
+        <button class="nav-btn active" onclick="mudarTela('home', this)">🏠<br>Home</button>
+        <button class="nav-btn" onclick="mudarTela('info', this)">📚<br>Info</button>
+        <button class="nav-btn" onclick="mudarTela('para', this)">🎗️<br>Pará</button>
+        <button class="nav-btn" onclick="mudarTela('chatbot', this)">🤖<br>Bot</button>
+        <button id="btn-nav-saude" class="nav-btn" onclick="mudarTela('saude', this)">📅<br>Saúde</button>
+    </nav>
+
+    <script>
+        let nomeUsuario = "Usuário(a)";
+        let generoUsuario = "feminino";
+        let precisaCiclo = "sim";
+
+        function verificarOpcaoGenero(genero) {
+            const campoPergunta = document.getElementById('campo-pergunta-ciclo');
+            if (genero === 'trans' || genero === 'nao_informar') {
+                campoPergunta.style.display = 'block';
+            } else {
+                campoPergunta.style.display = 'none';
+            }
+        }
+
+        function mudarTemaLocal(tema) {
+            document.body.className = tema;
+            localStorage.setItem('temaEscolhido', tema);
+        }
+
+        function aplicarRegrasGenero() {
+            const cardMenstrual = document.getElementById('card-monitoramento-menstrual');
+            const btnNavSaude = document.getElementById('btn-nav-saude');
+            const subtituloAnotacoes = document.getElementById('subtituloAnotacoes');
+
+            // Define visibilidade do Calendário na HOME
+            if (precisaCiclo === 'nao' || generoUsuario === 'masculino') {
+                if (cardMenstrual) cardMenstrual.style.display = 'none';
+                if (btnNavSaude) btnNavSaude.innerHTML = "📅<br>Registros";
+                if (subtituloAnotacoes) subtituloAnotacoes.innerText = "Anote aqui detalhes sobre relações sexuais, uso de preservativos, consultas ou exames de rotina.";
+            } else {
+                if (cardMenstrual) cardMenstrual.style.display = 'block';
+                if (btnNavSaude) btnNavSaude.innerHTML = "📅<br>Saúde";
+                if (subtituloAnotacoes) subtituloAnotacoes.innerText = "Anote aqui detalhes sobre os dias do seu ciclo menstrual, relações sexuais, sintomas ou exames.";
+            }
+        }
+
+        /* MODAL E CÁLCULO DO CICLO */
+        function abrirModalCiclo() {
+            document.getElementById('modal-ciclo').style.display = 'flex';
+        }
+
+        function fecharModalCiclo() {
+            document.getElementById('modal-ciclo').style.display = 'none';
+        }
+
+        function salvarDadosCiclo(e) {
+            e.preventDefault();
+            const inicio = document.getElementById('dataInicioMenstruacao').value;
+            const fim = document.getElementById('dataFimMenstruacao').value;
+
+            if(inicio && fim) {
+                localStorage.setItem('cicloInicio', inicio);
+                localStorage.setItem('cicloFim', fim);
+                atualizarExibicaoCiclo();
+                fecharModalCiclo();
+            }
+        }
+
+        function atualizarExibicaoCiclo() {
+            const inicioSalvo = localStorage.getItem('cicloInicio');
+            const fimSalvo = localStorage.getItem('cicloFim');
+
+            if (inicioSalvo && fimSalvo) {
+                const dataInicio = new Date(inicioSalvo);
+                const dataFim = new Date(fimSalvo);
+                const hoje = new Date();
+
+                document.getElementById('textoUltimoInicio').innerText = dataInicio.toLocaleDateString('pt-BR');
+                document.getElementById('textoUltimoFim').innerText = dataFim.toLocaleDateString('pt-BR');
+
+                const proximaData = new Date(dataInicio);
+                proximaData.setDate(proximaData.getDate() + 28);
+
+                const diferencaTempo = proximaData.getTime() - hoje.getTime();
+                const diferencaDias = Math.ceil(diferencaTempo / (1000 * 3600 * 24));
+
+                if (diferencaDias > 0) {
+                    document.getElementById('textoProximaMenstruacao').innerText = diferencaDias + " dias";
+                    let porcentagem = Math.max(5, Math.min(100, Math.round(((28 - diferencaDias) / 28) * 100)));
+                    document.getElementById('barraProgressoCiclo').style.width = porcentagem + "%";
+                } else {
+                    document.getElementById('textoProximaMenstruacao').innerText = "Atrasada ou prevista para hoje";
+                    document.getElementById('barraProgressoCiclo').style.width = "100%";
+                }
+            }
+        }
+
+        /* ANOTAÇÕES PESSOAIS */
+        function salvarAnotacao() {
+            const texto = document.getElementById('textoAnotacoes').value;
+            localStorage.setItem('anotacoesSaude', texto);
+            alert("Anotação salva com sucesso e em total sigilo!");
+        }
+
+        function carregarAnotacao() {
+            const textoSalvo = localStorage.getItem('anotacoesSaude');
+            if(textoSalvo) document.getElementById('textoAnotacoes').value = textoSalvo;
+        }
+
+        function fazerLogin(e) {
+            e.preventDefault();
+            const nomeInput = document.getElementById('loginNome').value.trim();
+            const temaInput = document.getElementById('loginTema').value;
+            const generoInput = document.getElementById('loginGenero').value;
+            
+            if(generoInput === 'masculino') {
+                precisaCiclo = 'nao';
+            } else if(generoInput === 'feminino') {
+                precisaCiclo = 'sim';
+            } else {
+                precisaCiclo = document.getElementById('loginUsaCiclo').value;
+            }
+
+            if(nomeInput) {
+                nomeUsuario = nomeInput;
+                generoUsuario = generoInput;
+
+                localStorage.setItem('usuarioNome', nomeUsuario);
+                localStorage.setItem('usuarioGenero', generoUsuario);
+                localStorage.setItem('precisaCiclo', precisaCiclo);
+                
+                document.querySelectorAll('.user-name-display').forEach(el => el.innerText = nomeUsuario);
+                
+                mudarTemaLocal(temaInput);
+                aplicarRegrasGenero();
+                document.getElementById('login-screen').style.display = 'none';
+            }
+        }
+
+        window.onload = function() {
+            const nomeSalvo = localStorage.getItem('usuarioNome');
+            const temaSalvo = localStorage.getItem('temaEscolhido');
+            const generoSalvo = localStorage.getItem('usuarioGenero');
+            const cicloSalvo = localStorage.getItem('precisaCiclo');
+
+            if(temaSalvo) mudarTemaLocal(temaSalvo);
+
+            if(nomeSalvo) {
+                nomeUsuario = nomeSalvo;
+                generoUsuario = generoSalvo || "feminino";
+                precisaCiclo = cicloSalvo || "sim";
+                document.querySelectorAll('.user-name-display').forEach(el => el.innerText = nomeUsuario);
+                aplicarRegrasGenero();
+                document.getElementById('login-screen').style.display = 'none';
+            }
+
+            atualizarExibicaoCiclo();
+            carregarAnotacao();
+        };
+
+        function mudarTela(id, btn) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        // Renderização do Calendário
+        const grid = document.getElementById('grid');
+        const diasSalvos = JSON.parse(localStorage.getItem('diasMarcados') || '[]');
+
+        for(let i = 1; i <= 30; i++) {
+            let div = document.createElement('button');
+            div.className = 'cal-day';
+            div.innerText = i;
+            
+            if (diasSalvos.includes(i)) div.classList.add('active');
+
+            div.onclick = function() { 
+                this.classList.toggle('active');
+                let marcados = JSON.parse(localStorage.getItem('diasMarcados') || '[]');
+                if (this.classList.contains('active')) {
+                    marcados.push(i);
+                } else {
+                    marcados = marcados.filter(d => d !== i);
+                }
+                localStorage.setItem('diasMarcados', JSON.stringify(marcados));
+            };
+            grid.appendChild(div);
+        }
+
+        // CHATBOT RESPOSTAS ESPECÍFICAS
+        function enviarMensagem(e) {
+            if(e) e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const chatBox = document.getElementById('chatBox');
+            const txt = input.value.toLowerCase().trim();
+            if(!txt) return;
+
+            chatBox.innerHTML += `<div class="msg user">${input.value}</div>`;
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const palavrasChaveSaude = [
+                'hiv', 'aids', 'ist', 'ists', 'dst', 'dsts', 'o que e ist', 'o que é ist', 'significado', 
+                'sífilis', 'sifilis', 'hpv', 'gonorreia', 'gonorréia', 'clamídia', 'clamidia', 'herpes', 
+                'hepatite', 'hepatite b', 'hepatite c', 'tricomoníase', 'tricomoniase', 'camisinha', 
+                'preservativo', 'gravidez', 'grávida', 'gravida', 'gestação', 'gestacao', 'planejada', 
+                'não planejada', 'nao planejada', 'atraso', 'atrasada', 'pílula do dia seguinte', 
+                'pilula do dia seguinte', 'emergência', 'emergencia', 'beta hcg', 'pré-natal', 'pre-natal', 
+                'ácido fólico', 'acido folico', 'fertilidade', 'ovulação', 'ovulacao', 'relação', 'sexo', 
+                'sus', 'piscina', 'remédio', 'pílula', 'papanicolau', 'exame', 'mama', 'próstata', 'colo', 
+                'útero', 'estômago', 'intestino', 'pulmão', 'câncer', 'cancer', 'vacina', 'médico', 'sintoma', 
+                'saúde', 'saude', 'corrimento', 'dor', 'tratamento', 'prevenção', 'prevencao', 'sangue', 
+                'psa', 'mamografia', 'posto', 'cta', 'ubs', 'vape', 'cigarro', 'diu'
+            ];
+
+            const eSobreSaude = palavrasChaveSaude.some(p => txt.includes(p));
+
+            setTimeout(() => {
+                let resp = "";
+
+                if (!eSobreSaude) {
+                    resp = "Oi " + nomeUsuario + "! Fico muito feliz em conversar com você. No entanto, para te ajudar da melhor maneira possível, este nosso espaço é dedicado exclusivamente a assuntos sobre saúde, prevenção de ISTs, gravidez planejada ou não, cuidados com o corpo e prevenção do câncer. Você gostaria de me fazer uma pergunta sobre algum desses temas de saúde?";
+                } else {
+                    // PERGUNTA: O QUE É IST?
+                    if (txt.includes('o que é ist') || txt.includes('o que e ist') || txt.includes('significa ist') || txt.includes('diferença entre dst') || txt.includes('diferenca entre dst') || txt === 'ist' || txt === 'ists') {
+                        resp = "<b>IST</b> é a sigla para <b>Infecção Sexualmente Transmissível</b>, " + nomeUsuario + "!\n\nEla substituiu a antiga sigla <b>DST</b> para enfatizar que é possível ter e transmitir um vírus ou bactéria mesmo <b>sem nenhum sintoma ou sinal de doença</b>.\n\nElas são transmitidas principalmente em relações sexuais desprotegidas. A prevenção inclui o uso de camisinha, vacinas (HPV e Hepatite B) e testes regulares no SUS!";
+                    }
+                    // SÍFILIS
+                    else if (txt.includes('sífilis') || txt.includes('sifilis')) {
+                        resp = "A Sífilis é uma infecção bacteriana grave que pode afetar o corpo todo se não tratada, " + nomeUsuario + ".\n\nSintomas: Começa com uma ferida indolor nos genitais ou boca; na 2ª fase surgem manchas no corpo, mãos e pés. Se avançar, pode trazer danos neurológicos.\n\nPrevenção e Tratamento: Previna-se usando camisinha! Tem cura total com antibióticos oferecidos gratuitamente no SUS. Faça o teste rápido no posto!";
+                    }
+                    // HIV / AIDS
+                    else if (txt.includes('hiv') || txt.includes('aids')) {
+                        resp = "Sobre o HIV, é muito importante se informar bem, " + nomeUsuario + "!\n\nResumo e Sintomas: O HIV ataca o sistema imunológico e, sem tratamento, evolui para a Aids. Inicialmente dá sintomas leves de gripe e depois infecções recorrentes.\n\nPrevenção e Tratamento: Use camisinha e PrEP/PEP! Com os medicamentos do SUS, a pessoa fica com carga viral Indetectável e não transmite o vírus (Indetectável = Intransmissível)!";
+                    }
+                    // HPV
+                    else if (txt.includes('hpv')) {
+                        resp = "O HPV (Papilomavírus Humano) é um vírus que infecta pele e mucosas, " + nomeUsuario + ".\n\nSintomas: Pode provocar verrugas genitais ou não apresentar sintomas visíveis. Tipos de alto risco podem evoluir para câncer de colo do útero.\n\nPrevenção: Tome a vacina contra o HPV no SUS (para crianças e jovens), use preservativo e realize o exame Papanicolau de rotina.";
+                    }
+                    // GONORREIA
+                    else if (txt.includes('gonorreia') || txt.includes('gonorréia')) {
+                        resp = "A Gonorreia é uma infecção bacteriana frequente, " + nomeUsuario + ".\n\nSintomas: Provoca dor intensa ou ardência ao urinar, além de corrimento amarelado ou esverdeado no pênis ou na vagina.\n\nPrevenção e Tratamento: A prevenção é feita com uso de preservativo em todas as relações. É curada com antibióticos no posto de saúde!";
+                    }
+                    // CLAMÍDIA
+                    else if (txt.includes('clamídia') || txt.includes('clamidia')) {
+                        resp = "A Clamídia é uma IST bacteriana altamente comum, " + nomeUsuario + ".\n\nSintomas: Na maioria das vezes é silenciosa. Quando apresenta sinais, causa dor ao urinar, corrimento e dores durante a relação sexual.\n\nPrevenção e Tratamento: Previna-se com camisinha em todos os contatos íntimos. Tem cura total com tratamento de antibióticos na UBS.";
+                    }
+                    // HERPES GENITAL
+                    else if (txt.includes('herpes')) {
+                        resp = "O Herpes Genital é provocado por um vírus, " + nomeUsuario + ".\n\nSintomas: Surgimento de pequenas bolhas dolorosas que estouram e viram feridas avermelhadas nos órgãos genitais, acompanhadas de ardor e coceira.\n\nPrevenção e Tratamento: Use camisinha e evite sexo durante crises visíveis. Os remédios antivirais do SUS cicatrizam as feridas mais rápido e diminuem a dor.";
+                    }
+                    // HEPATITE B E C
+                    else if (txt.includes('hepatite')) {
+                        resp = "As Hepatites B e C afetam gravemente o fígado, " + nomeUsuario + ".\n\nSintomas: Costumam ser silenciosas, mas podem causar olhos/pele amarelados, cansaço e urina escura.\n\nPrevenção: A Hepatite B é evitada com vacina gratuita no SUS e camisinha! A Hepatite C se previne não compartilhando agulhas/alicates de unha/lâminas e usando camisinha. A Hepatite C tem cura com comprimidos fornecidos pelo SUS!";
+                    }
+                    // TRICOMONÍASE
+                    else if (txt.includes('tricomoníase') || txt.includes('tricomoniase')) {
+                        resp = "A Tricomoníase é uma infecção causada por protozoário, " + nomeUsuario + ".\n\nSintomas: Provoca corrimento amarelado-esverdeado com forte odor, além de coceira intensa, dor ao urinar e incômodo no sexo.\n\nPrevenção e Tratamento: Previne-se com o uso de camisinha e sem compartilhar toalhas íntimas. É 100% curável com medicação do posto de saúde!";
+                    }
+                    // ISTs em Geral
+                    else if (txt.includes('dst')) {
+                        resp = "As ISTs (antigamente chamadas de DSTs) são infecções transmitidas principalmente no contato sexual sem proteção, " + nomeUsuario + ".\n\nAs principais são Sífilis, HIV, HPV, Gonorreia, Clamídia, Herpes, Hepatites B e C e Tricomoníase. A melhor forma de se prevenir de todas elas é com preservativo (camisinha), vacinas e exames regulares na UBS. Qual delas você quer entender melhor?";
+                    }
+                    // GRAVIDEZ PLANEJADA
+                    else if (txt.includes('planejada') && (txt.includes('gravidez') || txt.includes('grávida') || txt.includes('gravida') || txt.includes('quero'))) {
+                        resp = "Que momento especial, " + nomeUsuario + "! Planejar uma gravidez é lindo. Para se prevenir contra complicações:\n\n1. Faça a consulta pré-concepcional na UBS.\n2. Tome suplementação de ácido fólico antes de engravidar.\n3. Atualize sua carteira de vacinas no SUS!";
+                    }
+                    // GRAVIDEZ NÃO PLANEJADA / DÚVIDAS
+                    else if (txt.includes('não planejada') || txt.includes('nao planejada') || txt.includes('suspeita') || txt.includes('atraso') || txt.includes('atrasada') || txt.includes('pilula do dia seguinte') || txt.includes('pílula do dia seguinte')) {
+                        resp = "Mantenha a calma, " + nomeUsuario + "! Você não está só.\n\nSe a relação foi recente:\n- Pílula do Dia Seguinte: Tome em até 72 horas no SUS ou farmácia.\n\nSe houver atraso menstrual:\n- Teste de Gravidez: Faça o teste rápido ou Beta HCG gratuito na UBS mais próxima. A equipe médica acolhe você sem julgamentos!";
+                    }
+                    // CÂNCER
+                    else if (txt.includes('câncer') || txt.includes('cancer') || txt.includes('mama') || txt.includes('útero') || txt.includes('próstata') || txt.includes('estômago') || txt.includes('pulmão') || txt.includes('intestino')) {
+                        resp = "Cuidar da prevenção é essencial, " + nomeUsuario + "!\n\nPrevenção do Câncer:\n- Colo do útero: Vacina do HPV e Papanicolau no SUS.\n- Mama: Autoexame e mamografia.\n- Próstata: Exame PSA e toque retal.\n- Estômago/Intestino: Dieta rica em fibras e exames preventivos.\n- Pulmão: Evitar o cigarro e vapes.\n\nFaça consultas de rotina na UBS!";
+                    } 
+                    // PRESERVATIVOS
+                    else if (txt.includes('camisinha') || txt.includes('preservativo')) {
+                        resp = "A camisinha é nossa maior aliada, " + nomeUsuario + "! Protege simultaneamente contra ISTs e gravidez não planejada. Retire preservativos gratuitamente e sem burocracia em qualquer posto do SUS!";
+                    } 
+                    else {
+                        resp = "Essa é uma excelente dúvida sobre saúde, " + nomeUsuario + "! Lembre-se de que os postos de saúde (UBS) oferecem testes rápidos gratuitos para HIV, Sífilis e Hepatites, além de vacinas e orientação. Se quiser saber o resumo, sintomas e prevenção de alguma IST em específico, basta perguntar!";
+                    }
+                }
+                
+                resp = resp.replace(/\n/g, '<br>');
+                chatBox.innerHTML += `<div class="msg bot">${resp}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 500);
+        }
+    </script>
+</body>
+</html>
